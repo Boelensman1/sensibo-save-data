@@ -10,6 +10,9 @@ const knex = createKnex(knexConfig.development)
 const app = new Koa()
 const router = new Router()
 
+const toGoogleChartDate = (date) =>
+  `Date(${date.getFullYear()}, ${date.getMonth()}, ${date.getDay()}, ${date.getHours()}, ${date.getMinutes()}, ${date.getSeconds()}, ${date.getMilliseconds()})`
+
 router.get('/', (ctx) => {
   return send(ctx, './index.html')
 })
@@ -36,13 +39,13 @@ router.get('/data.json', async (ctx) => {
 
   ctx.body = {
     cols: [
-      { label: 'Time', type: 'string' },
+      { label: 'Time', type: 'date' },
       { label: 'Temperature (°C)', type: 'number' },
       { label: 'Humidity (%)', type: 'number' },
     ],
     rows: temperaturesWithhumidities.map((data) => ({
       c: [
-        { v: new Date(data.time).toISOString() },
+        { v: toGoogleChartDate(new Date(data.time)) },
         { v: data.isSensor ? data.temperature : null },
         { v: data.isSensor ? data.humidity : null },
       ],

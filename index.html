@@ -9,17 +9,31 @@
       google.charts.load('current', { packages: ['line'] })
       google.charts.setOnLoadCallback(drawChart)
       function drawChart() {
-        var jsonData = $.ajax({
+        const jsonData = $.ajax({
           url: 'data.json',
           dataType: 'json',
           async: false,
         }).responseText
-        var options = {
+
+        const options = {
           curveType: 'function',
           legend: { position: 'right' },
+          series: {
+            // Gives each series an axis name that matches the Y-axis below.
+            0: { axis: 'temperatures' },
+            1: { axis: 'humidities' },
+          },
+          axes: {
+            y: {
+              temperatures: { label: 'Temperature (°C)' },
+              humidities: { label: 'Humidity (%)' },
+            },
+          },
         }
-        var data = new google.visualization.DataTable(jsonData)
-        var chart = new google.charts.Line(document.getElementById('chart_div'))
+        const data = new google.visualization.DataTable(jsonData)
+        const chart = new google.charts.Line(
+          document.getElementById('chart_div'),
+        )
         chart.draw(data, google.charts.Line.convertOptions(options))
       }
     </script>
