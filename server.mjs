@@ -52,4 +52,4 @@ router.get('/data.json', async (ctx) => {
 
 app.use(router.routes()).use(router.allowedMethods())
 
-app.listen(3000)
+app.listen(process.env.PORT ?? 3000)
