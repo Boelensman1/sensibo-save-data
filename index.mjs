@@ -10,6 +10,12 @@ const sensiboApi = new SensiboApi({
 
 const knex = createKnex(knexConfig.development)
 
+function* chunks(arr, n) {
+  for (let i = 0; i < arr.length; i += n) {
+    yield arr.slice(i, i + n)
+  }
+}
+
 const syncDevices = async () => {
   const [devicesRemote, devicesLocal] = await Promise.all([
     sensiboApi.getDevices(),
@@ -43,8 +49,11 @@ const syncDevices = async () => {
   return devicesLocal
 }
 
-const pushHistoricalMeasurements = async (device) => {
-  // get remoteId
+const getSensiboId = async (device) => {
+  if (device.sensiboId) {
+    return device.sensiboId
+  }
+
   const parentDevice = await knex('devices')
     .where({ id: device.sensorForId })
     .first()
@@ -53,38 +62,54 @@ const pushHistoricalMeasurements = async (device) => {
     throw new Error(`Parent device (${device.sensorForId}) not found`)
   }
 
-  const measurements = await sensiboApi.getHistoricalMeasurements(
-    parentDevice.sensiboId,
-  )
+  return parentDevice.sensiboId
+}
+
+const pushHistoricalMeasurements = async (device) => {
+  const sensiboId = await getSensiboId(device)
+  const measurements = await sensiboApi.getHistoricalMeasurements(sensiboId)
+
+  // we need to chunk the inserts at 500 per time, sqlite doesn't like if we
+  // do more (too many terms in compound SELECT)
   await Promise.all([
-    knex('temperatures')
-      .insert(
-        measurements.temperature.map((data) => ({
-          ...data,
-          deviceId: device.id,
-        })),
-      )
-      .onConflict(['time', 'deviceId'])
-      .ignore(),
-    knex('humidities')
-      .insert(
-        measurements.humidity.map((data) => ({
-          ...data,
-          deviceId: device.id,
-        })),
-      )
-      .onConflict(['time', 'deviceId'])
-      .ignore(),
+    ...[...chunks(measurements.temperature, 500)].map((temperatures) =>
+      knex('temperatures')
+        .insert(
+          temperatures.map((data) => ({
+            ...data,
+            deviceId: device.id,
+          })),
+        )
+        .onConflict(['time', 'deviceId'])
+        .ignore(),
+    ),
+    ...[...chunks(measurements.humidity, 500)].map((humidities) =>
+      knex('humidities')
+        .insert(
+          humidities.map((data) => ({
+            ...data,
+            deviceId: device.id,
+          })),
+        )
+        .onConflict(['time', 'deviceId'])
+        .ignore(),
+    ),
   ])
 }
 
 const pushDeviceMeasurements = async (device) => {
-  const deviceInfo = await sensiboApi.getDeviceInfo(device.sensiboId)
+  const sensiboId = await getSensiboId(device)
+  const deviceInfo = await sensiboApi.getDeviceInfo(sensiboId)
+
+  const measurements = !!device.sensorForId
+    ? deviceInfo.mainMeasurementsSensor.measurements
+    : deviceInfo.measurements
+
   await Promise.all([
     knex('temperatures')
       .insert({
-        time: new Date(deviceInfo.measurements.time.time),
-        value: deviceInfo.measurements.temperature,
+        time: new Date(measurements.time.time),
+        value: measurements.temperature,
         deviceId: device.id,
       })
       .onConflict(['time', 'deviceId'])
@@ -92,8 +117,8 @@ const pushDeviceMeasurements = async (device) => {
     ,
     knex('humidities')
       .insert({
-        time: new Date(deviceInfo.measurements.time.time),
-        value: deviceInfo.measurements.humidity,
+        time: new Date(measurements.time.time),
+        value: measurements.humidity,
         deviceId: device.id,
       })
       .onConflict(['time', 'deviceId'])
@@ -108,10 +133,9 @@ const main = async () => {
     devices.map(async (device) => {
       if (device.sensorForId) {
         // this is a sensor
-        return pushHistoricalMeasurements(device)
-      } else {
-        return pushDeviceMeasurements(device)
+        await pushHistoricalMeasurements(device)
       }
+      await pushDeviceMeasurements(device)
     }),
   )
 }
