@@ -6,7 +6,7 @@
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     <script>
-      google.charts.load('current', { packages: ['line'] })
+      google.charts.load('current', { packages: ['corechart', 'line'] })
       google.charts.setOnLoadCallback(drawChart)
       function drawChart() {
         const jsonData = $.ajax({
@@ -16,25 +16,25 @@
         }).responseText
 
         const options = {
-          curveType: 'function',
-          legend: { position: 'right' },
+          curveType: 'none',
+          interpolateNulls: true,
+          legend: { position: 'bottom' },
           series: {
-            // Gives each series an axis name that matches the Y-axis below.
-            0: { axis: 'temperatures' },
-            1: { axis: 'humidities' },
+            0: { targetAxisIndex: 0 },
+            1: { targetAxisIndex: 1 },
+            2: { targetAxisIndex: 0 },
+            3: { targetAxisIndex: 1 },
           },
-          axes: {
-            y: {
-              temperatures: { label: 'Temperature (°C)' },
-              humidities: { label: 'Humidity (%)' },
-            },
+          vAxes: {
+            0: { title: 'Temperature (°C)' },
+            1: { title: 'Humidity (%)' },
           },
         }
         const data = new google.visualization.DataTable(jsonData)
-        const chart = new google.charts.Line(
+        const chart = new google.visualization.LineChart(
           document.getElementById('chart_div'),
         )
-        chart.draw(data, google.charts.Line.convertOptions(options))
+        chart.draw(data, options)
       }
     </script>
     <style>

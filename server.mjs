@@ -34,20 +34,23 @@ router.get('/data.json', async (ctx) => {
       )
     })
     .join('devices', 'devices.id', '=', 'temperatures.deviceId')
-    .whereNotNull('devices.sensorForId') // temporary
     .orderBy('temperatures.time')
 
   ctx.body = {
     cols: [
       { label: 'Time', type: 'date' },
-      { label: 'Temperature (°C)', type: 'number' },
-      { label: 'Humidity (%)', type: 'number' },
+      { label: 'Temperature (Sensor)', type: 'number' },
+      { label: 'Humidity (Sensor)', type: 'number' },
+      { label: 'Temperature (Device)', type: 'number' },
+      { label: 'Humidity (Device)', type: 'number' },
     ],
     rows: temperaturesWithhumidities.map((data) => ({
       c: [
         { v: toGoogleChartDate(new Date(data.time)) },
         { v: data.isSensor ? data.temperature : null },
         { v: data.isSensor ? data.humidity : null },
+        { v: !data.isSensor ? data.temperature : null },
+        { v: !data.isSensor ? data.humidity : null },
       ],
     })),
   }
