@@ -18,6 +18,15 @@ router.get('/', (ctx) => {
 })
 
 router.get('/data.json', async (ctx) => {
+  // get period
+  const now = new Date()
+  const oneDayBefore = new Date()
+  oneDayBefore.setDate(now.getDate() - 1)
+  let period = [oneDayBefore, now] // default period
+  if (ctx.request.query.period) {
+    period = JSON.parse(ctx.request.query.period).map((d) => new Date(d))
+  }
+
   const temperaturesWithhumidities = await knex('temperatures')
     .select(
       'temperatures.time',
@@ -35,6 +44,10 @@ router.get('/data.json', async (ctx) => {
     })
     .join('devices', 'devices.id', '=', 'temperatures.deviceId')
     .orderBy('temperatures.time')
+    .where('temperatures.time', '>=', period[0].getTime())
+    .andWhere('temperatures.time', '<=', period[1].getTime())
+    .where('humidities.time', '>=', period[0].getTime())
+    .andWhere('humidities.time', '<=', period[1].getTime())
 
   ctx.body = {
     cols: [

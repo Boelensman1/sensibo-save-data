@@ -40,13 +40,56 @@
         }
       }
 
+      const convertPeriod = (period) => {
+        const now = new Date()
+        switch (period) {
+          case 'P1D':
+            const oneDayBefore = new Date()
+            oneDayBefore.setDate(now.getDate() - 1)
+            return [oneDayBefore, now]
+
+          case 'P7D':
+            const sevenDaysBefore = new Date(now)
+            sevenDaysBefore.setDate(now.getDate() - 7)
+            return [sevenDaysBefore, now]
+
+          case 'P1M':
+            const oneMonthBefore = new Date(now)
+            oneMonthBefore.setMonth(now.getMonth() - 1)
+            return [oneMonthBefore, now]
+
+          case 'P1Y':
+            const oneYearBefore = new Date(now)
+            oneYearBefore.setFullYear(now.getFullYear() - 1)
+            return [oneYearBefore, now]
+
+          case 'P100Y':
+            const hundredYearsBefore = new Date(now)
+            hundredYearsBefore.setFullYear(now.getFullYear() - 100)
+            return [hundredYearsBefore, now]
+
+          default:
+            throw new Error('Cannot convert period')
+        }
+      }
+
       google.charts.load('current', { packages: ['corechart', 'line'] })
       google.charts.setOnLoadCallback(drawChart)
+
       function drawChart() {
+        const period = convertPeriod(
+          document.querySelector('#period_select').value,
+        )
+
         const jsonData = JSON.parse(
           $.ajax({
             url: 'data.json',
             dataType: 'json',
+            data: {
+              period: JSON.stringify(
+                period.map((period) => period.toISOString()),
+              ),
+            },
             async: false,
           }).responseText,
         )
@@ -88,6 +131,10 @@
           document.getElementById('chart_div'),
         )
         chart.draw(data, options)
+      }
+
+      function period_changed(e) {
+        drawChart()
       }
     </script>
     <style>
@@ -154,6 +201,15 @@
     </style>
   </head>
   <body>
+    <div id="period">
+      <select id="period_select" onChange="period_changed()">
+        <option value="P1D">Day</option>
+        <option value="P7D">Week</option>
+        <option value="P1M">Month</option>
+        <option value="P1Y">Year</option>
+        <option value="P100Y" selected>All</option>
+      </select>
+    </div>
     <div id="chart_div" style="width: 1350px; height: 600px">
       <div class="loader">Loading...</div>
     </div>
