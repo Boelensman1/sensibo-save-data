@@ -6,19 +6,72 @@
     <script src="https://www.gstatic.com/charts/loader.js"></script>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
     <script>
+      const interleave = (arr, valOrFunction) => {
+        for (let i = 0; i < arr.length; i += 2) {
+          let value = valOrFunction
+          if (typeof value === 'function') {
+            value = valOrFunction(i)
+          }
+          arr.splice(i + 1, 0, value)
+        }
+        return arr
+      }
+      const convertToDate = (dateString) => {
+        const parts = dateString.match(/\d+/g).map(Number)
+        return new Date(
+          parts[0],
+          parts[1],
+          parts[2],
+          parts[3],
+          parts[4],
+          parts[5],
+          parts[6],
+        )
+      }
+      const generateTooltip = (row, cols) => (index) => {
+        const date = new Date(convertToDate(row.c[0].v))
+        const label = cols[index + 1].label
+        const value = row.c[index / 2 + 1].v
+        return {
+          v: `<div style="padding: 8px; font-size: 1.4em">
+                <div style="font-weight: bold">${date.toLocaleString()}</div>
+                <div><span>${label}:</span>${value}</div>
+              </div>`,
+        }
+      }
+
       google.charts.load('current', { packages: ['corechart', 'line'] })
       google.charts.setOnLoadCallback(drawChart)
       function drawChart() {
-        const jsonData = $.ajax({
-          url: 'data.json',
-          dataType: 'json',
-          async: false,
-        }).responseText
+        const jsonData = JSON.parse(
+          $.ajax({
+            url: 'data.json',
+            dataType: 'json',
+            async: false,
+          }).responseText,
+        )
+
+        // Add tooltip cols
+        jsonData.cols = [
+          jsonData.cols[0],
+          ...interleave(jsonData.cols.slice(1), {
+            type: 'string',
+            role: 'tooltip',
+            p: { html: true },
+          }),
+        ]
+        jsonData.rows = jsonData.rows.map((row) => ({
+          c: [
+            row.c[0],
+            ...interleave(row.c.slice(1), generateTooltip(row, jsonData.cols)),
+          ],
+        }))
 
         const options = {
           curveType: 'none',
           interpolateNulls: true,
           legend: { position: 'bottom' },
+          tooltip: { isHtml: true },
           series: {
             0: { targetAxisIndex: 0 },
             1: { targetAxisIndex: 1 },
