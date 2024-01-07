@@ -11,7 +11,7 @@ const app = new Koa()
 const router = new Router()
 
 const toGoogleChartDate = (date) =>
-  `Date(${date.getFullYear()}, ${date.getMonth()}, ${date.getDay()}, ${date.getHours()}, ${date.getMinutes()}, ${date.getSeconds()}, ${date.getMilliseconds()})`
+  `Date(${date.getFullYear()}, ${date.getMonth()}, ${date.getDate()}, ${date.getHours()}, ${date.getMinutes()}, ${date.getSeconds()}, ${date.getMilliseconds()})`
 
 router.get('/', (ctx) => {
   return send(ctx, './index.html')
