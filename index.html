@@ -74,12 +74,14 @@
       }
 
       google.charts.load('current', { packages: ['corechart', 'line'] })
-      google.charts.setOnLoadCallback(drawChart)
+      google.charts.setOnLoadCallback(() => {
+        const queryParams = new URLSearchParams(window.location.search)
+        const period = queryParams.get('period')
+        return drawChart(period)
+      })
 
-      function drawChart() {
-        const period = convertPeriod(
-          document.querySelector('#period_select').value,
-        )
+      function drawChart(periodInput) {
+        const period = convertPeriod(periodInput)
 
         const jsonData = JSON.parse(
           $.ajax({
@@ -134,7 +136,14 @@
       }
 
       function period_changed(e) {
-        drawChart()
+        const period = document.querySelector('#period_select').value
+
+        // update url
+        const currentUrl = new URL(window.location)
+        currentUrl.searchParams.set('period', period)
+        window.history.pushState({}, '', currentUrl)
+
+        drawChart(period)
       }
     </script>
     <style>
