@@ -77,7 +77,7 @@
       google.charts.setOnLoadCallback(() => {
         const queryParams = new URLSearchParams(window.location.search)
         const period = queryParams.get('period')
-        return drawChart(period)
+        return drawChart(period || 'day')
       })
 
       function drawChart(periodInput) {
