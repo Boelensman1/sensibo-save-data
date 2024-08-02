@@ -36,6 +36,6 @@ export const up = async (knex) => {
  */
 export const down = async (knex) => {
   await knex.schema.dropTable('temperatures')
-  await knex.schema.dropTable('humidity')
+  await knex.schema.dropTable('humidities')
   await knex.schema.dropTable('devices')
 }
