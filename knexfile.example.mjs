@@ -1,10 +1,13 @@
 export default {
   development: {
-    client: 'better-sqlite3',
+    client: 'pg',
     connection: {
-      filename: './data.sqlite3',
+      host: 'localhost',
+      port: 5432,
+      user: 'user',
+      password: 'password',
+      database: 'sensibo',
     },
-    useNullAsDefault: true,
     migrations: {
       // important!
       loadExtensions: ['.mjs'],

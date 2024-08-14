@@ -40,6 +40,17 @@
         }
       }
 
+      const dateForInput = (date) => {
+        // Adjust for the timezone offset to get the correct UTC date and time
+        const adjustedDate = new Date(
+          date.getTime() - date.getTimezoneOffset() * 60000,
+        )
+
+        // Format the date to a string that can be used with the datetime-local input
+        // toISOString returns a string in the format YYYY-MM-DDTHH:MM:SS.sssZ, but we only need up to minutes
+        return adjustedDate.toISOString().slice(0, 16)
+      }
+
       const convertPeriod = (period) => {
         const now = new Date()
         switch (period) {
@@ -69,8 +80,12 @@
             return [hundredYearsBefore, now]
 
           default:
-            throw new Error('Cannot convert period')
+            throw new Error(`Cannot convert period ${period}`)
         }
+      }
+
+      function redraw_chart(e) {
+        drawChart()
       }
 
       google.charts.load('current', { packages: ['corechart', 'line'] })
@@ -86,20 +101,31 @@
       })
 
       function drawChart(periodInput) {
-        const period = convertPeriod(periodInput)
+        const from =
+          document.querySelector('#start_date').valueAsDate || new Date(0)
+        const to = document.querySelector('#end_date').valueAsDate || new Date()
+        const period = [from, to]
 
-        const jsonData = JSON.parse(
-          $.ajax({
-            url: 'data.json',
-            dataType: 'json',
-            data: {
-              period: JSON.stringify(
-                period.map((period) => period.toISOString()),
-              ),
-            },
-            async: false,
-          }).responseText,
-        )
+        const granularity = document.querySelector('#granularity').value
+
+        const response = $.ajax({
+          url: 'data.json',
+          dataType: 'json',
+          data: {
+            period: JSON.stringify(
+              period.map((period) => period.toISOString()),
+            ),
+            granularity,
+          },
+          async: false,
+        })
+
+        if (response.status !== 200) {
+          alert(response.responseText)
+          throw new Error(response.responseText)
+        }
+
+        const jsonData = JSON.parse(response.responseText)
 
         // Add tooltip cols
         jsonData.cols = [
@@ -141,14 +167,12 @@
       }
 
       function period_changed(e) {
-        const period = document.querySelector('#period_select').value
+        const [from, to] = convertPeriod(
+          document.querySelector('#period_select').value,
+        )
 
-        // update url
-        const currentUrl = new URL(window.location)
-        currentUrl.searchParams.set('period', period)
-        window.history.pushState({}, '', currentUrl)
-
-        drawChart(period)
+        document.querySelector('#start_date').value = dateForInput(from)
+        document.querySelector('#end_date').value = dateForInput(to)
       }
     </script>
     <style>
@@ -215,14 +239,50 @@
     </style>
   </head>
   <body>
-    <div id="period">
-      <select id="period_select" onChange="period_changed()">
-        <option value="P1D">Day</option>
-        <option value="P7D">Week</option>
-        <option value="P1M">Month</option>
-        <option value="P1Y">Year</option>
-        <option value="P100Y" selected>All</option>
-      </select>
+    <div style="text-align: center">
+      <div
+        style="
+          display: inline-flex;
+          gap: 6px;
+          padding: 6px;
+          border: 1px solid black;
+          text-align: left;
+        "
+      >
+        <div style="display: flex; flex-direction: column">
+          <label for="period_select">Periode</label>
+          <select id="period_select" onChange="period_changed()">
+            <option value="P1D">Day</option>
+            <option value="P7D">Week</option>
+            <option value="P1M">Month</option>
+            <option value="P1Y">Year</option>
+            <option value="P100Y" selected>All</option>
+          </select>
+        </div>
+        <div style="display: flex; flex-direction: column">
+          <label for="start_date">Van</label>
+          <input type="datetime-local" id="start_date" />
+        </div>
+
+        <div style="display: flex; flex-direction: column">
+          <label for="end_date">Tot</label>
+          <input type="datetime-local" id="end_date" />
+        </div>
+
+        <div style="display: flex; flex-direction: column">
+          <label for="granularity">Korrel</label>
+          <select id="granularity">
+            <option value="second">Second</option>
+            <option value="minute">Minute</option>
+            <option value="hour">Hour</option>
+            <option value="day">Day</option>
+            <option value="week">Week</option>
+            <option value="month">Month</option>
+          </select>
+        </div>
+
+        <button style="width: 100%" onClick="redraw_chart()">Toepassen</button>
+      </div>
     </div>
     <div id="chart_div" style="width: 1350px; height: 600px">
       <div class="loader">Loading...</div>

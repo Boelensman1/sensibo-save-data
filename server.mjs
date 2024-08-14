@@ -10,6 +10,16 @@ const knex = createKnex(knexConfig.development)
 const app = new Koa()
 const router = new Router()
 
+// add error handler
+app.use(async (_ctx, next) => {
+  try {
+    await next()
+  } catch (err) {
+    err.status = err.statusCode || err.status || 500
+    throw err
+  }
+})
+
 const toGoogleChartDate = (date) =>
   `Date(${date.getFullYear()}, ${date.getMonth()}, ${date.getDate()}, ${date.getHours()}, ${date.getMinutes()}, ${date.getSeconds()}, ${date.getMilliseconds()})`
 
@@ -27,13 +37,53 @@ router.get('/data.json', async (ctx) => {
     period = JSON.parse(ctx.request.query.period).map((d) => new Date(d))
   }
 
-  const temperaturesWithhumidities = await knex('temperatures')
+  // Validate granularity based on period
+  const periodDuration = period[1].getTime() - period[0].getTime()
+  const hours = periodDuration / (60 * 60 * 1000)
+  const days = hours / 24
+  const granularity = ctx.request.query.granularity || 'hour'
+
+  if (granularity === 'second' && hours > 12) {
+    const err = new Error(
+      'Second granularity is only allowed for periods up to 12 hours',
+    )
+    err.statusCode = 400
+    throw err
+  }
+  if (granularity === 'minute' && days > 1) {
+    const err = new Error(
+      'Minute granularity is only allowed for periods up to 1 day',
+    )
+    err.statusCode = 400
+    throw err
+  }
+  if (granularity === 'hour' && days > 31) {
+    const err = new Error(
+      'Hour granularity is only allowed for periods up to 31 days',
+    )
+    err.statusCode = 400
+    throw err
+  }
+
+  const temperaturesWithhumidities = await knex
+    .with(
+      'truncated_time_data',
+      knex.raw(
+        `SELECT
+        time,
+        immutable_date_trunc(?, time) AS truncated_time
+    FROM temperatures`,
+        [granularity],
+      ),
+    )
+    .fromRaw(`"truncated_time_data", "temperatures"`)
+    .distinctOn('truncated_time_data.truncated_time')
     .select(
       'temperatures.time',
       'temperatures.value as temperature',
       'humidities.value as humidity',
       'name as deviceName',
-      knex.raw('devices.sensorForId is not null as isSensor'),
+      knex.raw('devices."sensorForId" is not null as "isSensor"'),
     )
     .join('humidities', function () {
       this.on('temperatures.time', '=', 'humidities.time').andOn(
@@ -43,11 +93,12 @@ router.get('/data.json', async (ctx) => {
       )
     })
     .join('devices', 'devices.id', '=', 'temperatures.deviceId')
-    .orderBy('temperatures.time')
-    .where('temperatures.time', '>=', period[0].getTime())
-    .andWhere('temperatures.time', '<=', period[1].getTime())
-    .where('humidities.time', '>=', period[0].getTime())
-    .andWhere('humidities.time', '<=', period[1].getTime())
+    .whereRaw('"temperatures"."time" = "truncated_time_data"."time"')
+    .andWhere('temperatures.time', '>=', period[0])
+    .andWhere('temperatures.time', '<=', period[1])
+    .andWhere('humidities.time', '>=', period[0])
+    .andWhere('humidities.time', '<=', period[1])
+    .orderBy('truncated_time_data.truncated_time', 'DESC')
 
   ctx.body = {
     cols: [
@@ -71,4 +122,6 @@ router.get('/data.json', async (ctx) => {
 
 app.use(router.routes()).use(router.allowedMethods())
 
-app.listen(process.env.PORT ?? 3000)
+const port = process.env.PORT ?? 3000
+app.listen(port)
+console.log('Slimme meter server started, listening on port', port)
