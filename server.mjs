@@ -50,16 +50,16 @@ router.get('/data.json', async (ctx) => {
     err.statusCode = 400
     throw err
   }
-  if (granularity === 'minute' && days > 1) {
+  if (granularity === 'minute' && days > 7) {
     const err = new Error(
-      'Minute granularity is only allowed for periods up to 1 day',
+      'Minute granularity is only allowed for periods up to 7 days',
     )
     err.statusCode = 400
     throw err
   }
-  if (granularity === 'hour' && days > 31) {
+  if (granularity === 'hour' && days > 64) {
     const err = new Error(
-      'Hour granularity is only allowed for periods up to 31 days',
+      'Hour granularity is only allowed for periods up to 64 days',
     )
     err.statusCode = 400
     throw err
