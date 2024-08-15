@@ -70,8 +70,8 @@ router.get('/data.json', async (ctx) => {
       'truncated_time_data',
       knex.raw(
         `SELECT
-        time,
-        immutable_date_trunc(?, time) AS truncated_time
+        "time",
+        immutable_date_trunc(?, "time") AS truncated_time
     FROM temperatures`,
         [granularity],
       ),
