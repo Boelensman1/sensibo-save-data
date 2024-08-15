@@ -94,10 +94,8 @@ router.get('/data.json', async (ctx) => {
     })
     .join('devices', 'devices.id', '=', 'temperatures.deviceId')
     .whereRaw('"temperatures"."time" = "truncated_time_data"."time"')
-    .andWhere('temperatures.time', '>=', period[0])
-    .andWhere('temperatures.time', '<=', period[1])
-    .andWhere('humidities.time', '>=', period[0])
-    .andWhere('humidities.time', '<=', period[1])
+    .whereBetween('temperatures.time', period)
+    .whereBetween('humidities.time', period)
     .orderBy('truncated_time_data.truncated_time', 'DESC')
 
   ctx.body = {
