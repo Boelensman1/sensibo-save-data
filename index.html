@@ -115,7 +115,6 @@
         const period = [from, to]
 
         const granularity = document.querySelector('#granularity').value
-        console.log(period.map((period) => dateForServer(period).toISOString()))
 
         const response = $.ajax({
           url: 'data.json',
